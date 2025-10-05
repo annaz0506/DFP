@@ -31,12 +31,37 @@ class OnetAPI:
         data = response.json()
 
         results = []
-        for item in data.get("occupation", []):
-            title = item.get("title")
-            code = item.get("code")
-            if title and code:
+        
+        while True:
+            # Extract first 40 occupations based off relevance
+            occupations = data.get("occupation", [])
+            for occ in occupations:
+                title = occ.get("title")
+                code = occ.get("code")
                 results.append((title, code))
-        return results
+
+            # Follow the "next" link if present
+            next_url = None
+            for link in data.get("link", []):
+                if link.get("rel") == "next":
+                    next_url = link.get("href")
+                    break
+            
+            if not next_url:
+                break
+
+            response = self.session.get(next_url, headers=headers)
+            response.raise_for_status()
+            data = response.json()   
+        
+        seen = set()     
+        unique_results = []
+        for item in results:
+            if item not in seen:
+                seen.add(item)
+                unique_results.append(item)
+
+        return unique_results[:40] 
 
     def get_keywords(self, onet_code: str):
         # Get keywords for a given O*NET occupation code
